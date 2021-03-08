@@ -43,7 +43,6 @@ server.on("connection", (clientConnection) => {
                       let end = new Date().getTime();
                       cacheTime(processedData.url, end - start);
                       cacheSite(processedData.url, response.data);
-                      console.log(buffer + "requested site is not blocked");
                       clientConnection.write(response.data);
                       clientConnection.end();
                     })
@@ -56,7 +55,9 @@ server.on("connection", (clientConnection) => {
           }
         }
       );
-
+      serverConnection.on("error", (err) => {
+        console.log(`error: ${err}`);
+      });
       serverConnection.on("close", () => {
         if (processedData.host) console.log(`closed: ${processedData.host}`);
         else console.log(`closed: ${processedData.url}`);
@@ -66,7 +67,9 @@ server.on("connection", (clientConnection) => {
       clientConnection.write("Requested Site is Blocked");
       clientConnection.end();
     }
-
+    clientConnection.on("error", (err) => {
+      console.log(`error: ${err}`);
+    });
     clientConnection.on("close", () => {
       if (processedData.host) console.log(`closed: ${processedData.host}`);
       else console.log(`closed: ${processedData.url}`);
@@ -79,30 +82,26 @@ server.listen(port, () => {
 });
 
 const processData = (data) => {
+  //console.log(data);
   let processed = [];
   if (data.includes("CONNECT")) processed["type"] = "https";
   else processed["type"] = "http";
-  if (isWS(data)) processed["ws"] = true;
+  if (
+    data.toString().includes("websocket") ||
+    data.toString().includes("upgrade")
+  )
+    processed["ws"] = true;
   else processed["ws"] = false;
-  let split = "";
   if (processed.type === "https") {
     processed["url"] = "";
-    split = data.split(` `)[1].split(`:`);
-    processed["host"] = split[0];
-    processed["port"] = split[1];
+    processed["host"] = data.split("CONNECT ")[1].split(":")[0];
+    processed["port"] = data.split(":")[1].split(" ")[0];
   } else {
-    processed["url"] = data.split(" ")[1].split(" ")[0];
-    split = data.split(`Host: `)[1].split(`\r\n`)[0].split(`:`);
-    processed["host"] = split[0];
-    processed["port"] = split[1] ? split[1] : "80";
+    processed["url"] = data.split(" ", 2)[1];
+    processed["host"] = data.split("Host: ")[1].split("\r\n")[0];
+    processed["port"] = "80";
   }
   return processed;
-};
-
-const isWS = (data) => {
-  let str = data.toString();
-  if (str.includes("websocket") || str.includes("upgrade")) return true;
-  else return false;
 };
 
 const rl = readline.createInterface(process.stdin, process.stdout);
