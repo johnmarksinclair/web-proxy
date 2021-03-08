@@ -9,7 +9,7 @@ server.on("connection", (clientConnection) => {
   clientConnection.once("data", (data) => {
     let processedData = processData(data.toString());
     console.log(processedData);
-    if (!isBlocked(processedData.host) || !isBlocked(processedData.url)) {
+    if (!isBlocked(processedData.url)) {
       console.log(buffer + "requested site is not blocked");
       let serverConnection = net.createConnection(
         {
@@ -59,20 +59,18 @@ server.on("connection", (clientConnection) => {
         console.log(`error: ${err}`);
       });
       serverConnection.on("close", () => {
-        if (processedData.host) console.log(`closed: ${processedData.host}`);
-        else console.log(`closed: ${processedData.url}`);
+        console.log(`closed: ${processedData.host}`);
       });
     } else {
       console.log(buffer + "requested site is blocked");
-      clientConnection.write("Requested Site is Blocked");
+      clientConnection.write("HTTP/1.1 403 FORBIDDEN\r\n\r\n");
       clientConnection.end();
     }
     clientConnection.on("error", (err) => {
       console.log(`error: ${err}`);
     });
     clientConnection.on("close", () => {
-      if (processedData.host) console.log(`closed: ${processedData.host}`);
-      else console.log(`closed: ${processedData.url}`);
+      console.log(`closed: ${processedData.host}`);
     });
   });
 });
@@ -93,8 +91,9 @@ const processData = (data) => {
     processed["ws"] = true;
   else processed["ws"] = false;
   if (processed.type === "https") {
-    processed["url"] = "";
-    processed["host"] = data.split("CONNECT ")[1].split(":")[0];
+    let host = data.split("CONNECT ")[1].split(":")[0];
+    processed["url"] = host;
+    processed["host"] = host;
     processed["port"] = data.split(":")[1].split(" ")[0];
   } else {
     processed["url"] = data.split(" ", 2)[1];
@@ -209,7 +208,3 @@ const showStats = () => {
     `${buffer + bandwidthSaved} bytes and ${timeSaved} ms saved by proxy cache`
   );
 };
-
-// server.getConnections(callback)
-// Asynchronously get the number of concurrent connections on the server. Works when sockets were sent to forks.
-// Callback should take two arguments err and count.
