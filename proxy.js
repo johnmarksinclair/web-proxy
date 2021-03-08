@@ -1,100 +1,96 @@
 const net = require("net");
-const http = require("http");
+const axios = require("axios");
 const readline = require("readline");
-const { exec } = require("child_process");
-
-const httpPort = 80;
-const httpsPort = 8080;
+const port = 8080;
 const buffer = "    ";
 
-var request = require("request");
-var httpReqCount = 0;
-var httpsReqCount = 0;
+// var httpReqCount = 0;
+// var httpsReqCount = 0;
 
-const httpsServer = net.createServer();
+const server = net.createServer();
 
-httpsServer.on("error", (err) => {
-  console.error(`error: ${err}`);
-  exec("yarn start");
-});
-
-httpsServer.on("connection", (clientConnection) => {
+server.on("connection", (clientConnection) => {
   clientConnection.once("data", (data) => {
     let processedData = processData(data.toString());
-    //console.log(processedData);
-    if (!isBlocked(processedData.host)) {
-      console.log(
-        `https request(${httpsReqCount++}): url: ${processedData.host}`
-      );
-      console.log(buffer + "requested site is not blocked");
-      let serverConnection = net.createConnection(
-        {
-          host: processedData.host,
-          port: processedData.port,
-        },
-        () => {
-          if (isWebsocketRequest(data)) {
-          } else {
+    console.log(processedData);
+    if (!isBlocked(processedData.host) || !isBlocked(processedData.url)) {
+      if (processedData.https) {
+        // console.log(
+        //   `https request(${httpsReqCount++}): host: ${processedData.host}`
+        // );
+        console.log(buffer + "requested site is not blocked");
+        let serverConnection = net.createConnection(
+          {
+            host: processedData.host,
+            port: processedData.port,
+          },
+          () => {
             clientConnection.write("HTTP/1.1 200 OK\r\n\n");
             clientConnection.pipe(serverConnection).pipe(clientConnection);
           }
-        }
-      );
-    } else {
-      console.log(buffer + "requested site is blocked");
-      //clientConnection.write("HTTP/1.1 403 FORBIDDEN\r\n\r\n");
-      clientConnection.write("Requested Site is Blocked");
-      clientConnection.end();
-    }
-  });
-});
-
-httpsServer.listen(httpsPort, () => {
-  console.log(`https server listening on ${httpsPort}`);
-});
-
-const processData = (data) => {
-  //console.log(data);
-  let processed = [];
-  let splitStr = data.split(` `)[1].split(`:`);
-  processed["host"] = splitStr[0];
-  processed["port"] = splitStr[1];
-  return processed;
-};
-
-const httpRequestListener = (req, res) => {
-  if (req.url === "/" || req.url === "/favicon.ico") {
-    res.end("http proxy server");
-  } else {
-    console.log(`http request(${httpReqCount++}): url: ${req.url}`);
-    if (!isBlocked(req.url)) {
-      if (isCached(req.url)) {
-        console.log(buffer + "serving cached site");
-        res.write(getCachedSite(req.url));
-        res.end();
+        );
       } else {
-        let start = new Date().getTime();
-        request(req.url, (error, response, body) => {
-          if (error) return console.log(error);
-          let end = new Date().getTime();
-          cacheTime(req.url, end - start);
-          cacheSite(req.url, body);
-          console.log(buffer + "requested site is not blocked");
-          res.write(body);
-          res.end();
-        });
+        if (processedData.url === "/" || processedData.url === "/favicon.ico") {
+          clientConnection.end("http proxy server");
+        } else {
+          // console.log(
+          //   `http request(${httpReqCount++}): url: ${processedData.url}`
+          // );
+          if (isCached(processedData.url)) {
+            console.log(buffer + "serving cached site");
+            clientConnection.write(getCachedSite(processedData.url));
+            clientConnection.end();
+          } else {
+            let start = new Date().getTime();
+            axios
+              .get(processedData.url)
+              .then((response) => {
+                //console.log(response.data);
+                let end = new Date().getTime();
+                cacheTime(processedData.url, end - start);
+                cacheSite(processedData.url, response.data);
+                console.log(buffer + "requested site is not blocked");
+                clientConnection.write(response.data);
+                clientConnection.end();
+              })
+              .catch((error) => {
+                console.log(`error: ${error}`);
+              });
+          }
+        }
       }
     } else {
       console.log(buffer + "requested site is blocked");
-      res.write("Requested Site is Blocked");
-      res.end();
+      clientConnection.write("Requested Site is Blocked");
+      clientConnection.end();
     }
-  }
-};
 
-http.createServer(httpRequestListener).listen(httpPort, () => {
-  console.log(`http server listening to ${httpPort}`);
+    clientConnection.on("close", () => {
+      if (processedData.host) console.log(`closed: ${processedData.host}`);
+      else console.log(`closed: ${processedData.url}`);
+    });
+  });
 });
+
+server.listen(port, () => {
+  console.log(`server listening on ${port}`);
+});
+
+const processData = (data) => {
+  //console.log(`DATA START\n\n${data}DATA END`);
+  let processed = [];
+  if (data.includes("CONNECT")) processed["https"] = true;
+  else processed["https"] = false;
+  let split = "";
+  if (processed.https) {
+    split = data.split(` `)[1].split(`:`);
+    processed["host"] = split[0];
+    processed["port"] = split[1];
+  } else {
+    processed["url"] = data.split(" ")[1].split(" ")[0];
+  }
+  return processed;
+};
 
 const rl = readline.createInterface(process.stdin, process.stdout);
 
