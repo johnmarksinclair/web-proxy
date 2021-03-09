@@ -7,42 +7,40 @@ const server = net.createServer();
 
 server.on("connection", (clientConnection) => {
   clientConnection.once("data", (data) => {
-    let processedData = processData(data.toString());
-    console.log(processedData);
-    if (!isBlocked(processedData.url)) {
+    let processed = reqProcessor(data.toString());
+    console.log(processed);
+    if (!isBlocked(processed.url)) {
       console.log(buffer + "requested site is not blocked");
+
       let serverConnection = net.createConnection(
         {
-          host: processedData.host,
-          port: processedData.port,
+          host: processed.host,
+          port: processed.port,
         },
         () => {
-          if (processedData.type === "https") {
+          if (processed.type === "https") {
             clientConnection.write("HTTP/1.1 200 OK\r\n\n");
             clientConnection.pipe(serverConnection).pipe(clientConnection);
           } else {
-            if (processedData.ws) {
+            if (processed.ws) {
               console.log("is ws");
               clientConnection.pipe(serverConnection).pipe(clientConnection);
             } else {
-              if (
-                processedData.url === "/" ||
-                processedData.url === "/favicon.ico"
-              ) {
+              if (processed.url === "/" || processed.url === "/favicon.ico") {
                 clientConnection.end("http proxy server");
               } else {
-                if (isCached(processedData.url)) {
+                if (isCached(processed.url)) {
                   console.log(buffer + "serving cached site");
-                  clientConnection.write(getCachedSite(processedData.url));
+                  clientConnection.write(getCachedSite(processed.url));
                   clientConnection.end();
                 } else {
                   let start = new Date().getTime();
                   axios
-                    .get(processedData.url)
+                    .get(processed.url)
                     .then((response) => {
                       let end = new Date().getTime();
-                      cacheTime(processedData.url, end - start);
-                      cacheSite(processedData.url, response.data);
+                      cacheTime(processed.url, end - start);
+                      cacheSite(processed.url, response.data);
                       clientConnection.write(response.data);
                       clientConnection.end();
                     })
@@ -59,18 +57,19 @@ server.on("connection", (clientConnection) => {
         console.log(`error: ${err}`);
       });
       serverConnection.on("close", () => {
-        console.log(`closed: ${processedData.host}`);
+        console.log(`closed: ${processed.host}`);
       });
     } else {
       console.log(buffer + "requested site is blocked");
       clientConnection.write("HTTP/1.1 403 FORBIDDEN\r\n\r\n");
       clientConnection.end();
+      clientConnection.destroy();
     }
     clientConnection.on("error", (err) => {
       console.log(`error: ${err}`);
     });
     clientConnection.on("close", () => {
-      console.log(`closed: ${processedData.host}`);
+      console.log(`closed: ${processed.host}`);
     });
   });
 });
@@ -79,7 +78,7 @@ server.listen(port, () => {
   console.log(`server listening on ${port}`);
 });
 
-const processData = (data) => {
+const reqProcessor = (data) => {
   //console.log(data);
   let processed = [];
   if (data.includes("CONNECT")) processed["type"] = "https";
