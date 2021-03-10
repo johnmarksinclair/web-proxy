@@ -68,7 +68,6 @@ Below is an example of the output seen on the management console when www.exampl
     time taken: 0 ms
     216 ms saved by caching
     closed: example.com
-[
 ```
 
 As you can see serving the cached response is far quicker and saves bandwidth. I tested loading sites three times and recorded the results:
