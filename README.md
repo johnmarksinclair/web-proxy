@@ -2,7 +2,7 @@
 
 ## Web Proxy Server - John Sinclair - 16325734
 
-### Task:
+### Task
 
 Implement a web proxy server which fetches items from the web on behalf of a web client instead of the client fetching them directly. This allows for caching of pages and access control.
 
@@ -14,9 +14,13 @@ The program should be able to:
 4. Efficiently cache HTTP requests locally and thus save bandwidth. You must gather timing and bandwidth data to prove the efficiency of your proxy.
 5. Handle multiple requests simultaneously by implementing a threaded server.
 
-### Overview:
+### Overview
 
 I implemented this server in NodeJS using the net and axios modules. The net module is used to create both servers and clients, and axios is a JavaScript library for making HTTP requests from NodeJS, based on the Promise API.
+
+### Cache Efficiency
+
+Caching chars at 2 bytes each so size is body length x 2
 
 ### Installation
 
@@ -36,7 +40,7 @@ Requires NodeJS and yarn or npm. First run `yarn install` in the root of the clo
 
 `/ss` - shows the current proxy time and bandwidth savings
 
-### Code:
+### Code
 
 ```javascript
 const net = require("net");
@@ -64,7 +68,6 @@ server.on("connection", (clientConnection) => {
             clientConnection.pipe(serverConnection).pipe(clientConnection);
           } else {
             if (processed.ws) {
-              console.log("is ws");
               clientConnection.pipe(serverConnection).pipe(clientConnection);
             } else {
               if (processed.url === "/" || processed.url === "/favicon.ico") {
@@ -250,5 +253,3 @@ const showStats = () => {
   );
 };
 ```
-
-caching chars at 2 bytes each so size is body length x 2

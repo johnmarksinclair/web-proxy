@@ -23,7 +23,6 @@ server.on("connection", (clientConnection) => {
             clientConnection.pipe(serverConnection).pipe(clientConnection);
           } else {
             if (processed.ws) {
-              console.log("is ws");
               clientConnection.pipe(serverConnection).pipe(clientConnection);
             } else {
               if (processed.url === "/" || processed.url === "/favicon.ico") {
