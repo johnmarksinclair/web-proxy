@@ -33,6 +33,10 @@ server.on("connection", (clientConnection) => {
                   clientConnection.write(getCachedSite(processed.url));
                   let end = new Date().getTime();
                   console.log(buffer + `time taken: ${end - start} ms`);
+                  let time = cachedTimes.get(processed.url);
+                  console.log(
+                    buffer + `${time - (end - start)} ms saved by caching`
+                  );
                   clientConnection.end();
                 } else {
                   let start = new Date().getTime();
@@ -42,6 +46,10 @@ server.on("connection", (clientConnection) => {
                       cacheSite(processed.url, response.data);
                       clientConnection.write(response.data);
                       let end = new Date().getTime();
+                      console.log(
+                        buffer +
+                          `bandwidth used: ${response.data.length * 2} bytes`
+                      );
                       console.log(buffer + `time taken: ${end - start} ms`);
                       cacheTime(processed.url, end - start);
                       clientConnection.end();
@@ -177,10 +185,8 @@ const cacheTime = (url, time) => {
 const getCachedSite = (url) => {
   let body = cached.get(url);
   bandwidthSaved += body.length * 2;
-  console.log(buffer + `${body.length * 2} bytes saved by caching`);
-  let time = cachedTimes.get(url);
-  timeSaved += time;
-  console.log(buffer + `${time} ms saved by caching`);
+  console.log(buffer + `bandwidth saved: ${body.length * 2} bytes`);
+  timeSaved += cachedTimes.get(url);
   return body;
 };
 
