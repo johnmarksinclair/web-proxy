@@ -20,7 +20,7 @@ I implemented this server in NodeJS using the net and axios modules. The net mod
 
 The net module allows for creation of servers, this proxy server listens to port 8080 and when a new connection is made (multiple are possible per client) it awaits a data request. This request is then processed using a server method, the processed or formatted request is printed to the management console and if the requested site is not blocked it creates a connection between the client and server, if it is blocked the server sends a 403 forbidden response to the client, prints the blocked request message to the management console and terminates the client connection using the destroy() method, ensuring no more activity occurs on this socket.
 
-#### Requests
+### Requests
 
 When a connection is made between a client and the server, the server will process the request differently depending on the type of request.
 
@@ -33,11 +33,11 @@ HTTP requests - WebSockets begin as a standard HTTP request and response. The cl
   - Cached - if cached the previously cached response body is written to the client connection and the "serving cached site" message along with infomation on time and bandwidth savings is printed to the management console. The connection is then closed.
   - Uncached - if not cached the clock is started (for cache timing data) and the request is performed. When the request receives a response the clock is stopped and the body of the response and request time is stored. The body of the response is then written to the client and the connection is ended.
 
-#### Dynamic Blocking
+### Dynamic Blocking
 
 The proxy sever supports dynamic blocking via the management console. Using the commands `/b` and `/u` in the management console the proxy admin block and unblock specified URLs or domains. Additionally the admin can use the command `/sb` to print a list of the currently blocked domains to the console.
 
-#### Cache Efficiency
+### Cache Efficiency
 
 I implemented a cache using a JavaScript map, pairing a URL with the body of the response received. Since the cached response body is in the form of characters the bandwidth saved is the length of the body mulitplied by 2 (the number of bytes a char takes up in memory).
 
@@ -85,7 +85,7 @@ As you can see serving the cached response is far quicker and saves bandwidth. I
     - Total: 238 ms, 2512 bytes
   - Efficiency: 680 ms and 5,024 bytes saved
 
-#### Threading
+### Threading
 
 This proxy server facilitates simultaneous requests via multithreading, the NodeJS net module selects an available thread to handle each event as it occurs. These threads are asynchronous, allowing for multiple connections and simultaneous requests.
 
