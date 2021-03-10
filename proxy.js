@@ -195,11 +195,12 @@ const isCached = (url) => {
 
 const clearCache = () => {
   cached.clear();
+  cachedTimes.clear();
   console.log(buffer + "cache has been cleared");
 };
 
 const showCached = () => {
-  console.log(cached);
+  console.log(cached.keys());
 };
 
 const showStats = () => {
