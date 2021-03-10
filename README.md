@@ -37,6 +37,36 @@ HTTP requests - WebSockets begin as a standard HTTP request and response. The cl
 
 The proxy sever supports dynamic blocking via the management console. Using the commands `/b` and `/u` in the management console the proxy admin block and unblock specified URLs or domains. Additionally the admin can use the command `/sb` to print a list of the currently blocked domains to the console.
 
+Below is a snapshot of the output seen on the management console:
+
+```javascript
+server listening on 8080
+[
+  type: 'http',
+  ws: false,
+  url: 'http://example.com/',
+  host: 'example.com',
+  port: '80'
+]
+    requested site is not blocked
+    bandwidth used: 2512 bytes
+    time taken: 206 ms
+    closed: example.com
+/b example.com
+    blocked example.com
+[
+  type: 'http',
+  ws: false,
+  url: 'http://example.com/',
+  host: 'example.com',
+  port: '80'
+]
+    requested site is blocked
+    closed: example.com
+```
+
+As you can see, after the administrator inputs the command `/b example.com` the clients are unabled to access example.com and received a `ERROR 403` access denied message instead.
+
 ### Cache Efficiency
 
 I implemented a cache using a JavaScript map, pairing a URL with the body of the response received. Since the cached response body is in the form of characters the bandwidth saved is the length of the body mulitplied by 2 (the number of bytes a char takes up in memory).
