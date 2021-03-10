@@ -11,7 +11,6 @@ server.on("connection", (clientConnection) => {
     console.log(processed);
     if (!isBlocked(processed.url)) {
       console.log(buffer + "requested site is not blocked");
-
       let serverConnection = net.createConnection(
         {
           host: processed.host,
@@ -29,18 +28,22 @@ server.on("connection", (clientConnection) => {
                 clientConnection.end("http proxy server");
               } else {
                 if (isCached(processed.url)) {
+                  let start = new Date().getTime();
                   console.log(buffer + "serving cached site");
                   clientConnection.write(getCachedSite(processed.url));
+                  let end = new Date().getTime();
+                  console.log(buffer + `time taken: ${end - start} ms`);
                   clientConnection.end();
                 } else {
                   let start = new Date().getTime();
                   axios
                     .get(processed.url)
                     .then((response) => {
-                      let end = new Date().getTime();
-                      cacheTime(processed.url, end - start);
                       cacheSite(processed.url, response.data);
                       clientConnection.write(response.data);
+                      let end = new Date().getTime();
+                      console.log(buffer + `time taken: ${end - start} ms`);
+                      cacheTime(processed.url, end - start);
                       clientConnection.end();
                     })
                     .catch((error) => {
@@ -56,7 +59,7 @@ server.on("connection", (clientConnection) => {
         console.log(`error: ${err}`);
       });
       serverConnection.on("close", () => {
-        console.log(`closed: ${processed.host}`);
+        console.log(buffer + `closed: ${processed.host}`);
       });
     } else {
       console.log(buffer + "requested site is blocked");
@@ -68,13 +71,14 @@ server.on("connection", (clientConnection) => {
       console.log(`error: ${err}`);
     });
     clientConnection.on("close", () => {
-      console.log(`closed: ${processed.host}`);
+      console.log(buffer + `closed: ${processed.host}`);
     });
   });
 });
 
 server.listen(port, () => {
   console.log(`server listening on ${port}`);
+  // load cache from local files
 });
 
 const reqProcessor = (data) => {
@@ -82,11 +86,7 @@ const reqProcessor = (data) => {
   let processed = [];
   if (data.includes("CONNECT")) processed["type"] = "https";
   else processed["type"] = "http";
-  if (
-    data.toString().includes("websocket") ||
-    data.toString().includes("upgrade")
-  )
-    processed["ws"] = true;
+  if (data.toString().includes("websocket")) processed["ws"] = true;
   else processed["ws"] = false;
   if (processed.type === "https") {
     let host = data.split("CONNECT ")[1].split(":")[0];
@@ -151,17 +151,14 @@ const isBlocked = (url) => {
 };
 
 const showBlocked = () => {
-  console.log("-------------------");
-  console.log("   BLOCKED SITES   ");
-  console.log("-------------------");
+  console.log("blocked sites:");
   if (blocked.length > 0) {
     blocked.forEach((site) => {
-      console.log(site);
+      console.log(buffer + site);
     });
   } else {
-    console.log("none");
+    console.log(buffer + "none");
   }
-  console.log("-------------------\n");
 };
 
 var cached = new Map();
