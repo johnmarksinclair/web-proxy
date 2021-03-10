@@ -18,9 +18,27 @@ The program should be able to:
 
 I implemented this server in NodeJS using the net and axios modules. The net module is used to create both servers and clients, and axios is a JavaScript library for making HTTP requests from NodeJS, based on the Promise API.
 
+### Installation
+
+Requires NodeJS and yarn or npm. First run `yarn install` in the root of the cloned repository in order to add the required dependancies. `yarn start` will then start the server, listening to port 8080. Configure your computer or browser proxy settings and the traffic will be displayed in the terminal.
+
+### Management Commands
+
+`/b example.com` - blocks the specified url
+
+`/u example.com` - unblocks the specified url
+
+`/sb` - shows a list of blocked urls in the management console
+
+`/sc` - shows a list of the urls that are cached
+
+`/cc` - clears the cache
+
+`/ss` - shows the current proxy time and bandwidth savings
+
 ### Code:
 
-```mermaid
+```javascript
 const net = require("net");
 const axios = require("axios");
 const readline = require("readline");
@@ -231,7 +249,6 @@ const showStats = () => {
     `${buffer + bandwidthSaved} bytes and ${timeSaved} ms saved by proxy cache`
   );
 };
-
 ```
 
 caching chars at 2 bytes each so size is body length x 2
