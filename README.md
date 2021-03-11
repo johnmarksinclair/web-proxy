@@ -102,7 +102,7 @@ Below is an example of the output seen on the management console when www.exampl
 
 As you can see serving the cached response is far quicker and saves bandwidth. I tested loading sites three times and recorded the results:
 
-- www.example.com - 2512 bytes
+- www.example.com
   - Caching disabled: 327 ms, 225 ms, 354 ms
     - Total: 906 ms, 7536 bytes
   - Caching enabled: 331 ms, 1 ms, 1 ms
