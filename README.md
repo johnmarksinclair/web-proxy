@@ -154,7 +154,7 @@ server.on("connection", (clientConnection) => {
   // when the server receives data (requests) perform operations
   clientConnection.once("data", (data) => {
     // process the raw request
-    let processed = reqProcessor(data.toString());
+    let processed = reqFormatter(data.toString());
     // display the formatted request to the management console
     console.log(processed);
     // check if the requested site is blocked
@@ -180,45 +180,11 @@ server.on("connection", (clientConnection) => {
               if (processed.url === "/" || processed.url === "/favicon.ico") {
                 clientConnection.end("http proxy server");
               } else {
-                // check whether caches response available
+                // check whether cached response available
                 if (isCached(processed.url)) {
-                  let start = new Date().getTime();
-                  console.log(buffer + "serving cached site");
-                  // serve the cached response to the client
-                  clientConnection.write(getCachedSite(processed.url));
-                  let end = new Date().getTime();
-                  console.log(buffer + `time taken: ${end - start} ms`);
-                  let time = cachedTimes.get(processed.url);
-                  console.log(
-                    buffer + `${time - (end - start)} ms saved by caching`
-                  );
-                  timeSaved += time - (end - start);
-                  // close the client connection
-                  clientConnection.end();
+                  cachedHandler(processed, clientConnection);
                 } else {
-                  let start = new Date().getTime();
-                  // perform request for uncached request
-                  axios
-                    .get(processed.url)
-                    .then((response) => {
-                      // cache the response data and associate with url
-                      cacheSite(processed.url, response.data);
-                      // serve the response to the client
-                      clientConnection.write(response.data);
-                      let end = new Date().getTime();
-                      console.log(
-                        buffer +
-                          `bandwidth used: ${response.data.length * 2} bytes`
-                      );
-                      console.log(buffer + `time taken: ${end - start} ms`);
-                      // note request time for cache analysis
-                      cacheTime(processed.url, end - start);
-                      // close the clients connection
-                      clientConnection.end();
-                    })
-                    .catch((error) => {
-                      console.log(error);
-                    });
+                  uncachedHandler(processed, clientConnection);
                 }
               }
             }
@@ -254,10 +220,51 @@ server.listen(port, () => {
   console.log(`server listening on ${port}`);
 });
 
+// handles cached http requests and wrties responses to the passed client
+// params: processed: the processed request, clientConnection: the connection info
+const cachedHandler = (processed, clientConnection) => {
+  let start = new Date().getTime();
+  console.log(buffer + "serving cached site");
+  // serve the cached response to the client
+  clientConnection.write(getCachedSite(processed.url));
+  let end = new Date().getTime();
+  console.log(buffer + `time taken: ${end - start} ms`);
+  let time = cachedTimes.get(processed.url);
+  console.log(buffer + `${time - (end - start)} ms saved by caching`);
+  timeSaved += time - (end - start);
+  // close the client connection
+  clientConnection.end();
+};
+
+// handles uncached http requests and wrties responses to the passed client
+// params: processed: the processed request, clientConnection: the connection info
+const uncachedHandler = (processed, clientConnection) => {
+  let start = new Date().getTime();
+  // perform request for uncached request
+  axios
+    .get(processed.url)
+    .then((response) => {
+      // cache the response data and associate with url
+      cacheSite(processed.url, response.data);
+      // serve the response to the client
+      clientConnection.write(response.data);
+      let end = new Date().getTime();
+      console.log(buffer + `bandwidth used: ${response.data.length * 2} bytes`);
+      console.log(buffer + `time taken: ${end - start} ms`);
+      // note request time for cache analysis
+      cacheTime(processed.url, end - start);
+      // close the clients connection
+      clientConnection.end();
+    })
+    .catch((error) => {
+      console.log("error occured");
+    });
+};
+
 // request processing/ formatting method
 // params: data: raw request data
 // returns: formatted request array object
-const reqProcessor = (data) => {
+const reqFormatter = (data) => {
   //console.log(data);
   let processed = [];
   if (data.includes("CONNECT")) processed["type"] = "https";
