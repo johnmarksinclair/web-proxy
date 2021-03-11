@@ -179,6 +179,7 @@ server.on("connection", (clientConnection) => {
                   console.log(
                     buffer + `${time - (end - start)} ms saved by caching`
                   );
+                  timeSaved += time - (end - start);
                   clientConnection.end();
                 } else {
                   let start = new Date().getTime();
@@ -197,7 +198,7 @@ server.on("connection", (clientConnection) => {
                       clientConnection.end();
                     })
                     .catch((error) => {
-                      console.log(`error: ${error}`);
+                      console.log(error);
                     });
                 }
               }
@@ -206,7 +207,7 @@ server.on("connection", (clientConnection) => {
         }
       );
       serverConnection.on("error", (err) => {
-        console.log(`error: ${err}`);
+        console.log(err);
       });
       serverConnection.on("close", () => {
         console.log(buffer + `closed: ${processed.host}`);
@@ -218,7 +219,7 @@ server.on("connection", (clientConnection) => {
       clientConnection.destroy();
     }
     clientConnection.on("error", (err) => {
-      console.log(`error: ${err}`);
+      console.log(err);
     });
     clientConnection.on("close", () => {
       console.log(buffer + `closed: ${processed.host}`);
@@ -236,7 +237,7 @@ const reqProcessor = (data) => {
   let processed = [];
   if (data.includes("CONNECT")) processed["type"] = "https";
   else processed["type"] = "http";
-  if (data.toString().includes("websocket")) processed["ws"] = true;
+  if (data.includes("websocket")) processed["ws"] = true;
   else processed["ws"] = false;
   if (processed.type === "https") {
     let host = data.split("CONNECT ")[1].split(":")[0];
@@ -328,7 +329,6 @@ const getCachedSite = (url) => {
   let body = cached.get(url);
   bandwidthSaved += body.length * 2;
   console.log(buffer + `bandwidth saved: ${body.length * 2} bytes`);
-  timeSaved += cachedTimes.get(url);
   return body;
 };
 
