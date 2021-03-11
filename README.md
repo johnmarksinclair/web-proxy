@@ -30,12 +30,12 @@ HTTP requests - WebSockets begin as a standard HTTP request and response. The cl
 
 - WebSocket requests - if a WebSocket request is detected, all subsequent data streams are piped directly from the server to the client connection and vice versa.
 - Standard HTTP requests - if the request is just a standard HTTP request the server first checks whether the requested URL is cached:
-  - Cached - if cached the previously cached response body is written to the client connection and the "serving cached site" message along with infomation on time and bandwidth savings is printed to the management console. The connection is then closed.
+  - Cached - if cached the previously cached response body is written to the client connection and the "serving cached site" message along with information on time and bandwidth savings is printed to the management console. The connection is then closed.
   - Uncached - if not cached the clock is started (for cache timing data) and the request is performed. When the request receives a response the clock is stopped and the body of the response and request time is stored. The body of the response is then written to the client and the connection is ended.
 
 ### Dynamic Blocking
 
-The proxy sever supports dynamic blocking via the management console. Using the commands `/b` and `/u` in the management console the proxy admin block and unblock specified URLs or domains. Additionally the admin can use the command `/sb` to print a list of the currently blocked domains to the console.
+The proxy server supports dynamic blocking via the management console. Using the commands `/b` and `/u` in the management console the proxy admin block and unblock specified URLs or domains. Additionally the admin can use the command `/sb` to print a list of the currently blocked domains to the console.
 
 Below is a snapshot of the output seen on the management console:
 
@@ -65,11 +65,11 @@ server listening on 8080
     closed: example.com
 ```
 
-As you can see, after the administrator inputs the command `/b example.com` the clients are unabled to access example.com and received a `ERROR 403` access denied message instead.
+As you can see, after the administrator inputs the command `/b example.com` the clients are unable to access example.com and receive an `ERROR 403` access denied message instead.
 
 ### Cache Efficiency
 
-I implemented a cache using a JavaScript map, pairing a URL with the body of the response received. Since the cached response body is in the form of characters the bandwidth saved is the length of the body mulitplied by 2 (the number of bytes a char takes up in memory).
+I implemented a cache using a JavaScript map, pairing a URL with the body of the response received. Since the cached response body is in the form of characters the bandwidth saved is the length of the body multiplied by 2 (the number of bytes a char takes up in memory).
 
 Below is an example of the output seen on the management console when www.example.com is loaded twice, the first where a request needs to be made and the second where a cached response can be served.
 
@@ -143,35 +143,48 @@ Requires NodeJS and yarn or npm. First run `yarn install` in the root of the clo
 const net = require("net");
 const axios = require("axios");
 const readline = require("readline");
-const port = 8080;
 const buffer = "    ";
+// specify port to listen to
+const port = 8080;
+// creating the server
 const server = net.createServer();
 
+// setting the server to perform actions upon new connections
 server.on("connection", (clientConnection) => {
+  // when the server receives data (requests) perform operations
   clientConnection.once("data", (data) => {
+    // process the raw request
     let processed = reqProcessor(data.toString());
+    // display the formatted request to the management console
     console.log(processed);
+    // check if the requested site is blocked
     if (!isBlocked(processed.url)) {
       console.log(buffer + "requested site is not blocked");
+      // if not blocked create a connection using the server host and port info
       let serverConnection = net.createConnection(
         {
           host: processed.host,
           port: processed.port,
         },
         () => {
+          // check request type
           if (processed.type === "https") {
+            // perform HTTPS handshake and pipe further packets
             clientConnection.write("HTTP/1.1 200 OK\r\n\n");
             clientConnection.pipe(serverConnection).pipe(clientConnection);
           } else {
             if (processed.ws) {
+              // pipe any websocket connection requests directly from client to server
               clientConnection.pipe(serverConnection).pipe(clientConnection);
             } else {
               if (processed.url === "/" || processed.url === "/favicon.ico") {
                 clientConnection.end("http proxy server");
               } else {
+                // check whether caches response available
                 if (isCached(processed.url)) {
                   let start = new Date().getTime();
                   console.log(buffer + "serving cached site");
+                  // serve the cached response to the client
                   clientConnection.write(getCachedSite(processed.url));
                   let end = new Date().getTime();
                   console.log(buffer + `time taken: ${end - start} ms`);
@@ -180,13 +193,17 @@ server.on("connection", (clientConnection) => {
                     buffer + `${time - (end - start)} ms saved by caching`
                   );
                   timeSaved += time - (end - start);
+                  // close the client connection
                   clientConnection.end();
                 } else {
                   let start = new Date().getTime();
+                  // perform request for uncached request
                   axios
                     .get(processed.url)
                     .then((response) => {
+                      // cache the response data and associate with url
                       cacheSite(processed.url, response.data);
+                      // serve the response to the client
                       clientConnection.write(response.data);
                       let end = new Date().getTime();
                       console.log(
@@ -194,7 +211,9 @@ server.on("connection", (clientConnection) => {
                           `bandwidth used: ${response.data.length * 2} bytes`
                       );
                       console.log(buffer + `time taken: ${end - start} ms`);
+                      // note request time for cache analysis
                       cacheTime(processed.url, end - start);
+                      // close the clients connection
                       clientConnection.end();
                     })
                     .catch((error) => {
@@ -213,8 +232,11 @@ server.on("connection", (clientConnection) => {
         console.log(buffer + `closed: ${processed.host}`);
       });
     } else {
+      // if requested site is blocked
       console.log(buffer + "requested site is blocked");
+      // serve error 403 to client
       clientConnection.write("HTTP/1.1 403 FORBIDDEN\r\n\r\n");
+      // end and destroy the connection preventing further activity
       clientConnection.end();
       clientConnection.destroy();
     }
@@ -227,11 +249,14 @@ server.on("connection", (clientConnection) => {
   });
 });
 
+// set the server to listen to specified port
 server.listen(port, () => {
   console.log(`server listening on ${port}`);
-  // load cache from local files
 });
 
+// request processing/ formatting method
+// params: data: raw request data
+// returns: formatted request array object
 const reqProcessor = (data) => {
   //console.log(data);
   let processed = [];
@@ -252,8 +277,10 @@ const reqProcessor = (data) => {
   return processed;
 };
 
+// init the management console input
 const rl = readline.createInterface(process.stdin, process.stdout);
 
+// check for management console commands and route accordingly
 rl.on("line", (inp) => {
   if (inp.includes("/b")) block(inp.substring(3));
   else if (inp.includes("/u")) unblock(inp.substring(3));
@@ -265,8 +292,11 @@ rl.on("line", (inp) => {
   else console.log(buffer + "invalid command: " + inp);
 });
 
+// array of blocked sites/ domains
 var blocked = [];
 
+// blocks specified url or domain
+// params: inp: admin inputted domain or url to be blocked
 const block = (inp) => {
   if (!isBlocked(inp)) {
     blocked.push(inp);
@@ -276,6 +306,8 @@ const block = (inp) => {
   }
 };
 
+// unblocks url or domain
+// params: inp: admin inputted domain or url to be unblocked
 const unblock = (inp) => {
   if (isBlocked(inp)) {
     blocked = blocked.filter((ele) => {
@@ -287,6 +319,9 @@ const unblock = (inp) => {
   }
 };
 
+// checks if specified url is blocked
+// params: url: admin inputted url or domain
+// returns: boolean
 const isBlocked = (url) => {
   var flag = false;
   if (blocked.length > 0) {
@@ -301,6 +336,7 @@ const isBlocked = (url) => {
   }
 };
 
+// prints list of currently blocked sites to the management console
 const showBlocked = () => {
   console.log("blocked sites:");
   if (blocked.length > 0) {
@@ -317,14 +353,21 @@ var cachedTimes = new Map();
 var timeSaved = 0;
 var bandwidthSaved = 0;
 
+// caches a site
+// params: url: url to be cached, body: response body for url
 const cacheSite = (url, body) => {
   cached.set(url, body);
 };
 
+// records time taken to perform request
+// params: url: url to cache time, time: time taken to perform request
 const cacheTime = (url, time) => {
   cachedTimes.set(url, time);
 };
 
+// gets a site from the cache
+// params: url: url required to serve to client
+// returns: body: the body of the cached response
 const getCachedSite = (url) => {
   let body = cached.get(url);
   bandwidthSaved += body.length * 2;
@@ -332,21 +375,27 @@ const getCachedSite = (url) => {
   return body;
 };
 
+// checks whether a site is cached or not
+// params: url: site to check if cached
+// returns: boolean
 const isCached = (url) => {
   if (cached.has(url)) return true;
   else return false;
 };
 
+// clears the cache
 const clearCache = () => {
   cached.clear();
   cachedTimes.clear();
   console.log(buffer + "cache has been cleared");
 };
 
+// prints the currently cached site urls to the management console
 const showCached = () => {
   console.log(cached.keys());
 };
 
+// prints the current time and bandwidth savings from serving cached sites
 const showStats = () => {
   console.log(
     `${buffer + bandwidthSaved} bytes and ${timeSaved} ms saved by proxy cache`
